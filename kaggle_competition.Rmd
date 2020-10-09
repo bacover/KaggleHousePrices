@@ -39,6 +39,7 @@ test <- read.csv("./input/test.csv", stringsAsFactors=FALSE)
 
 names(train)
 
+scatterplot(SalePrice ~ YearBuilt, data=train,  xlab="Year Built", ylab="Sale Price", grid=FALSE)
 ```
 
 
@@ -555,7 +556,7 @@ train$qual_ext <- train$OverallQual*train$exterior_cond #quality x exterior
 
 ###Model Prepping
 
-Then, partition! I always like to use the caret partitioning function.
+partition
 
 ```{r partition}
 outcome <- train$SalePrice
@@ -573,7 +574,7 @@ outcome <- train$SalePrice
 
 ###A Linear Model
 
-Finally, we have our data and can build some models. Since our outcome is a continuous numeric variable, we want a linear model, not a GLM. First, let's just toss it all in there. I always like to use a proper regression model as my first examination of the data, to get a feel for what's there.
+
 
 ```{r lm}
 
@@ -582,9 +583,7 @@ summary(lm_model_15)
 
 ```
 
-Lots of stuff we can drop right off, that's good. Some multicollinearity is making the model drop a few variables, but that's ok.
 
-Also, our R-squared is not too bad! In case you're unfamiliar, that indicates what percent of the variation in the outcome is explained using the model we designed.
 
 ```{r lm2}
 
@@ -598,7 +597,7 @@ summary(lm_model_15)
 
 ```
 
-That's our model with the important stuff, more or less. How does the RMSE turn out? That is our outcome of interest, after all.
+
 
 
 ```{r testing}
@@ -617,7 +616,7 @@ rmse(model_output$log_SalePrice,model_output$log_prediction)
 
 ###A Random Forest
 
-Not too bad, given that this is just an LM. Let's try training the model with an RF. Let's use all the variables and see how things look, since randomforest does its own feature selection.
+Let's try training the model with an RF. 
 
 ```{r caret1}
 
@@ -637,7 +636,7 @@ model_output$log_SalePrice <- log(model_output$SalePrice)
 rmse(model_output$log_SalePrice,model_output$log_prediction)
 
 model_rf <- randomForest(SalePrice ~ ., data=train)
-
+varImpPlot(model_rf)
 
 ```
 
@@ -728,7 +727,7 @@ rmse(model_output$log_SalePrice,model_output$log_prediction)
 
 ```
 
-Nice, that's pretty good stuff. I'll take the xgboost I think, let's call that good and make up the submission. Honestly, this is where the interesting stuff basically ends, unless you want to see the retraining and submission formatting.
+
 
 ***
 
@@ -764,12 +763,20 @@ bstSparse <-
            print_every_n = 50,
            nthread = 2)
   
+
+importance_matrix <- xgb.importance(colnames(retrainD), model = bstSparse)
+
+xgb.plot.importance(importance_matrix, rel_to_first = TRUE, xlab = "Relative importance", top_n = 10)
+
+(gg <- xgb.ggplot.importance(importance_matrix, measure = "Frequency", rel_to_first = TRUE))
+gg + ggplot2::ylab("Frequency")
+
 ```
 
 
 ##Prepare the prediction data
 
-Here I just repeat the same work I did on the training set, check the code tab to see all the details.
+Here I just repeat the same work I did on the training set
 
 ```{r formatting_predictiondata, echo=FALSE}
 test$paved[test$Street == "Pave"] <- 1
@@ -1051,7 +1058,7 @@ test$qual_ext <- test$OverallQual*test$exterior_cond #quality x exterior
 ```
 
 
-Then, format it for xgboost, I'm just using my boilerplate code for that.
+Then, format it for xgboost
 ```{r finalpredict2}
 # Get the supplied test data ready #
 
@@ -1066,8 +1073,7 @@ predicting <- as(predData, "sparseMatrix")
 ```
 
 
-Make sure your training sample and prediction sample have the same variables. I have been including this in code lately because I was making silly mistakes on variable choice.
-
+Make sure your training sample and prediction sample have the same variables. 
 ```{r finalpredict3}
 colnames(train[,c(2:37, 39:86)])
 
